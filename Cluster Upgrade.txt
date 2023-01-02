@@ -1,0 +1,73 @@
+####Cluster upgrade#####
+***************High Leval plan for upgrade***************
+upgrade controlplan first##upgrade kubelet##upgrade kubect1##upgrade worker node
+
+A.Upgrading control plane node
+
+//apt-mark unhold kubeadm && \
+//apt-get update && apt-get install -y kubeadm=1.24.0-00 && \
+//apt-mark hold kubeadm
+ 
+##Verify the version
+//kubeadm version
+   
+##To check upgrade plan 
+
+//kubeadm upgrade plan
+
+##Apply upgrade with specific version
+
+//sudo kubeadm upgrade apply v1.24.0-00
+
+===Once the command finishes you should see====
+
+[upgrade/successful] SUCCESS! Your cluster was upgraded to "v1.26.x". Enjoy!
+
+[upgrade/kubelet] Now that your control plane is upgraded, please proceed with upgrading your kubelets if you haven't already done so.
+
+NOte:-you ccan again check upgrade plan 
+
+
+B. Upgrading kubelet & kubectl
+
+###Drain the node(All replica pods will shifted to another available node)
+//kubectl drain <node-to-drain> --ignore-daemonsets
+
+##Upgrade the kubelet and kubect
+apt-mark unhold kubelet kubectl && \
+apt-get update && apt-get install -y kubelet=1.24.0 kubectl=1.24.0 && \
+apt-mark hold kubelet kubectl
+
+##Restart the kubelet
+sudo systemctl daemon-reload
+sudo systemctl restart kubelet
+
+
+##Uncordon the node
+kubectl uncordon <node-to-uncordon>
+
+
+C.Upgrade worker nodes
+
+##Upgrade kubeadm
+apt-mark unhold kubeadm && \
+apt-get update && apt-get install -y kubeadm=1.24.0-00 && \
+apt-mark hold kubeadm
+
+##upgrade local kubelet
+sudo kubeadm upgrade node
+
+##Drain the node(Run on controlplan)
+kubectl drain <node-to-drain> --ignore-daemonsets
+
+##Upgrade kubelet and kubectl
+apt-mark unhold kubelet kubectl && \
+apt-get update && apt-get install -y kubelet=1.24.0-00 kubectl=1.24.0-00 && \
+apt-mark hold kubelet kubectl
+
+##Restart the kubelet:
+sudo systemctl daemon-reload
+sudo systemctl restart kubelet
+
+##Uncordon the node((Run on controlplan))
+kubectl uncordon <node-to-uncordon>
