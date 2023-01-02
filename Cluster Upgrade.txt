@@ -1,7 +1,7 @@
 ***************High Level plan for upgrade***************
 upgrade controlplane first>>then upgrade kubelet>>then upgrade kubect>>then upgrade worker node
 
-************Upgrading controlplane node*************
+************Upgrading controlplane node************
 
 //apt-mark unhold kubeadm && \
 //apt-get update && apt-get install -y kubeadm=1.24.0-00 && \
