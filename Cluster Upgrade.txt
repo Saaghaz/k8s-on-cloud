@@ -1,8 +1,7 @@
-####Cluster upgrade#####
 ***************High Leval plan for upgrade***************
-upgrade controlplan first##upgrade kubelet##upgrade kubect1##upgrade worker node
+upgrade controlplan first>>then upgrade kubelet>>then upgrade kubect1>>then upgrade worker node
 
-A.Upgrading control plane node
+************Upgrading control plane node*************
 
 //apt-mark unhold kubeadm && \
 //apt-get update && apt-get install -y kubeadm=1.24.0-00 && \
@@ -11,7 +10,7 @@ A.Upgrading control plane node
 ##Verify the version
 //kubeadm version
    
-##To check upgrade plan 
+##To check upgrade plan(in this you can see available version or target version)
 
 //kubeadm upgrade plan
 
@@ -21,53 +20,51 @@ A.Upgrading control plane node
 
 ===Once the command finishes you should see====
 
-[upgrade/successful] SUCCESS! Your cluster was upgraded to "v1.26.x". Enjoy!
+[upgrade/successful] SUCCESS! Your cluster was upgraded to "v1.24.0-00". Enjoy!
 
 [upgrade/kubelet] Now that your control plane is upgraded, please proceed with upgrading your kubelets if you haven't already done so.
 
-NOte:-you ccan again check upgrade plan 
+NOte:-you can again check upgrade plan 
 
 
-B. Upgrading kubelet & kubectl
+B. Upgrading kubelet & kubectl of master node
 
-###Drain the node(All replica pods will shifted to another available node)
+###Drain the node first(All replica pods will shifted to another available node)
 //kubectl drain <node-to-drain> --ignore-daemonsets
 
 ##Upgrade the kubelet and kubect
-apt-mark unhold kubelet kubectl && \
-apt-get update && apt-get install -y kubelet=1.24.0 kubectl=1.24.0 && \
-apt-mark hold kubelet kubectl
+//apt-mark unhold kubelet kubectl && \
+//apt-get update && apt-get install -y kubelet=1.24.0 kubectl=1.24.0 && \
+//apt-mark hold kubelet kubectl
 
 ##Restart the kubelet
-sudo systemctl daemon-reload
-sudo systemctl restart kubelet
+//sudo systemctl daemon-reload
+//sudo systemctl restart kubelet
 
+##Uncordon the node(Uncordon is use to change status of node from unschedule to schedule)
+//kubectl uncordon <node-to-uncordon>
 
-##Uncordon the node
-kubectl uncordon <node-to-uncordon>
-
-
-C.Upgrade worker nodes
+*******************upgrading worker Node************
 
 ##Upgrade kubeadm
-apt-mark unhold kubeadm && \
-apt-get update && apt-get install -y kubeadm=1.24.0-00 && \
-apt-mark hold kubeadm
+//apt-mark unhold kubeadm && \
+//apt-get update && apt-get install -y kubeadm=1.24.0-00 && \
+//apt-mark hold kubeadm
 
 ##upgrade local kubelet
-sudo kubeadm upgrade node
+//sudo kubeadm upgrade node
 
-##Drain the node(Run on controlplan)
-kubectl drain <node-to-drain> --ignore-daemonsets
+##Drain the node(This command must run on controlplane node)
+//kubectl drain <nodename which node you want to ypgrade> --ignore-daemonsets
 
 ##Upgrade kubelet and kubectl
-apt-mark unhold kubelet kubectl && \
-apt-get update && apt-get install -y kubelet=1.24.0-00 kubectl=1.24.0-00 && \
-apt-mark hold kubelet kubectl
+//apt-mark unhold kubelet kubectl && \
+//apt-get update && apt-get install -y kubelet=1.24.0-00 kubectl=1.24.0-00 && \
+//apt-mark hold kubelet kubectl
 
 ##Restart the kubelet:
-sudo systemctl daemon-reload
-sudo systemctl restart kubelet
+//sudo systemctl daemon-reload
+//sudo systemctl restart kubelet
 
-##Uncordon the node((Run on controlplan))
+##Uncordon the node(This command must run on controlplane node)
 kubectl uncordon <node-to-uncordon>
