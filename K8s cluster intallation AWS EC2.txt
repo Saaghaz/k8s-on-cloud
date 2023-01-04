@@ -20,10 +20,12 @@ All require port should be open in security group for Nodes.
 
 //////////Run below commands one by one to Forwarding IPv4 and letting iptables see bridged traffic(All Nodes)///////
 
+```
 cat <<EOF | sudo tee /etc/modules-load.d/k8s.conf
 overlay
 br_netfilter
 EOF
+```
 
 sudo modprobe overlay
 sudo modprobe br_netfilter
