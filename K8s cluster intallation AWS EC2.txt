@@ -1,0 +1,178 @@
+Highlevel roadmap for installing cluster by kubeadm
+
+A.Install and configure prerequisites(All Nodes)
+      >> Forwarding IPv4 and letting iptables see bridged traffic
+      >> Install Docker Engine, Install cri-dockerd
+	  >>Install git if node is not connected with git
+B.Download, upgrade and install kubeadm,kubectl,kubelet(All Nodes)
+C.Initializing kubeadm(MAster Node)
+D.Install network Addonn(Master Node) 
+
+
+
+Prerequisite
+
+A compatible Linux host. The Kubernetes project provides generic instructions for Linux distributions based on Debian and Red Hat, and those distributions without a package manager.
+2 GB or more of RAM per machine (any less will leave little room for your apps).
+2 CPUs or more
+All require port should be open in security group for Nodes. 
+
+
+//////////Run below commands one by one to Forwarding IPv4 and letting iptables see bridged traffic(All Nodes)///////
+
+cat <<EOF | sudo tee /etc/modules-load.d/k8s.conf
+overlay
+br_netfilter
+EOF
+
+sudo modprobe overlay
+sudo modprobe br_netfilter
+
+cat <<EOF | sudo tee /etc/sysctl.d/k8s.conf
+net.bridge.bridge-nf-call-iptables  = 1
+net.bridge.bridge-nf-call-ip6tables = 1
+net.ipv4.ip_forward                 = 1
+EOF
+
+sudo sysctl --system
+
+lsmod | grep br_netfilter
+lsmod | grep overlay
+
+
+
+
+
+//////////////////Install Docker Engine(All Nodes)/////////////////////
+
+
+
+sudo apt-get remove docker docker-engine docker.io containerd runc
+
+sudo apt-get update
+sudo apt-get install \
+    ca-certificates \
+    curl \
+    gnupg \
+    lsb-release
+	
+sudo mkdir -p /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
+  $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+  
+sudo apt-get update
+ 
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
+sudo apt-get update
+
+sudo apt-get install docker-ce docker-ce-cli containerd.io docker-compose-plugin
+
+
+
+///////////////////////Install cri-dockerd(All node)////////////////////////
+
+suudo apt-get install git-all
+
+git clone https://github.com/Mirantis/cri-dockerd.git
+
+mkdir bin
+VERSION=$((git describe --abbrev=0 --tags | sed -e 's/v//') || echo $(cat VERSION)-$(git log -1 --pretty='%h')) PRERELEASE=$(grep -q dev <<< "${VERSION}" && echo "pre" || echo "") REVISION=$(git log -1 --pretty='%h')
+go build -ldflags="-X github.com/Mirantis/cri-dockerd/version.Version='$VERSION}' -X github.com/Mirantis/cri-dockerd/version.PreRelease='$PRERELEASE' -X github.com/Mirantis/cri-dockerd/version.BuildTime='$BUILD_DATE' -X github.com/Mirantis/cri-dockerd/version.GitCommit='$REVISION'" -o cri-dockerd
+
+# Run these commands as root
+###Install GO###
+wget https://storage.googleapis.com/golang/getgo/installer_linux
+chmod +x ./installer_linux
+./installer_linux
+source ~/.bash_profile
+
+cd cri-dockerd
+mkdir bin
+go build -o bin/cri-dockerd
+mkdir -p /usr/local/bin
+install -o root -g root -m 0755 bin/cri-dockerd /usr/local/bin/cri-dockerd
+cp -a packaging/systemd/* /etc/systemd/system
+sed -i -e 's,/usr/bin/cri-dockerd,/usr/local/bin/cri-dockerd,' /etc/systemd/system/cri-docker.service
+systemctl daemon-reload
+systemctl enable cri-docker.service
+systemctl enable --now cri-docker.socket
+
+
+
+//////////////////////////Download, upgrade and install kubeadm,kubectl,kubelet(All Nodes)//////////////////
+
+
+sudo apt-get update
+sudo apt-get install -y apt-transport-https ca-certificates curl
+
+sudo curl -fsSLo /etc/apt/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg
+
+echo "deb [signed-by=/etc/apt/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+
+sudo apt-get update
+sudo apt-get install -y kubelet kubeadm kubectl
+sudo apt-mark hold kubelet kubeadm kubectl
+
+
+
+////////////////////Initializing kubeadm (only Master)//////////////////////
+
+kubeadm init <args>
+
+Example:-kubeadm init --apiserver-advertise-address <Master node eth0 ip > --pod-network-cidr=192.168.0.0/16  -cri-socket
+Example:-kubeadm init --ignore-preflight-errors=all        (you can run this without all arguments)
+
+
+--apiserver-advertise-address --pod-network-cidr  -cri-socket
+
+#####Output after initialized should be like this
+{{{{Your Kubernetes control-plane has initialized successfully!
+
+To start using your cluster, you need to run the following as a regular user:
+
+  mkdir -p $HOME/.kube
+  sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+  sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+You should now deploy a Pod network to the cluster.
+Run "kubectl apply -f [podnetwork].yaml" with one of the options listed at:
+  /docs/concepts/cluster-administration/addons/
+
+You can now join any number of machines by running the following on each node
+as root:
+
+  kubeadm join <control-plane-host>:<control-plane-port> --token <token> --discovery-token-ca-cert-hash sha256:<hash>}}}}}}}}
+  
+
+########Node is still not ready after kubeadm initialized becasue we didn't install network addons till now.
+
+###Please run below commands in Master node.
+
+mkdir -p $HOME/.kube
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+
+////////////////////Install network Addonn(only Master)/////////////////////////
+
+##I am using calico
+
+curl https://raw.githubusercontent.com/projectcalico/calico/v3.24.5/manifests/calico.yaml -O
+kubectl apply -f calico.yaml
+
+
+
+/////////////Add New worker nodes to this cluster///////////////
+
+Run this command in Master Node
+
+kubeadm token create  --print-join-command
+
+# Output:-kubeadm join <control-plane-host>:<control-plane-port> --token <token> --discovery-token-ca-cert-hash sha256:<hash>
+
+Please run above output in worker Nodes to join this cluster.
+
