@@ -34,7 +34,7 @@ net.bridge.bridge-nf-call-ip6tables = 1
 net.ipv4.ip_forward                 = 1
 EOF
 
-sudo sysctl --system
+sudo sysctl --system  
 
 lsmod | grep br_netfilter
 lsmod | grep overlay
@@ -43,7 +43,7 @@ lsmod | grep overlay
 
 
 
-//////////////////Install Docker Engine(All Nodes)/////////////////////
+//////////////////Install Docker Engine(All Nodes)///////////////////////
 
 
 
