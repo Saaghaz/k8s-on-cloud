@@ -78,7 +78,7 @@ sudo apt-get install docker-ce docker-ce-cli containerd.io docker-compose-plugin
 
 ///////////////////////Install cri-dockerd(All node)////////////////////////
 
-suudo apt-get install git-all
+sudo apt-get install git-all
 
 git clone https://github.com/Mirantis/cri-dockerd.git
 
